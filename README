@@ -1,0 +1,143 @@
+---------------------------
+Generative variational inference in C
+---------------------------
+
+This is a C-implementation of the mean-field variational algorithm for the
+logistic normal latent embedding model for correlated categorical data.
+
+It was built from the 2007 ctm-c code of David Blei and John Lafferty.
+See https://github.com/blei-lab/ctm-c for the original.
+
+This code requires the GSL library.
+
+------------------------------------------------------------------------
+
+TABLE OF CONTENTS
+
+A. COMPILING
+
+B. DATA FORMAT
+
+C. MODEL ESTIMATION
+
+D. MODEL EXAMINATION
+   1. output of estimation
+
+------------------------------------------------------------------------
+
+A. COMPILING
+
+Type "make" in a shell.  Note: the Makefile currently points to the
+GSL version on my machine.  You will probably want to
+point to the BLAS library on your machine. The file Makefile_old should help with this.
+
+------------------------------------------------------------------------
+
+B. Data format
+
+The data is a file where each line is of the form:
+
+     [u] covariate-1 covariate-2 covariate-3 
+
+* [u] is the data point number (but actually you can have any integer 0-9 here).
+
+* covariate-i is the one-hot encoding of the covariate, i.e., it is a K-length vector with one slot equal to one and the rest equal to zero.
+
+
+------------------------------------------------------------------------
+
+C. Estimating a model
+
+The command to estimate a model is:
+
+./ctm est <dataset> <# covariates> <# categories> <latent dimension> <fixed/rand> <dir> <settings>
+
+For example:
+
+./ctm est dat_bin_100_2_1_m_.txt 100 3 2 fixed results settings.txt 
+
+- <dataset> is the file described above in part B.
+
+- <# covariates> is the number of covariates. It is the same for each data point.
+
+- <# categories> is the number of categories per each covariate. IT IS ASSUMED TO BE THE SAME FOR ALL COVARIATES.
+
+- <latent dim> is the latent dimension. It is decided by the user.
+
+- <fixed/rand> indicates how to initialize EM: with fixed values of beta or some chosen at random. 
+
+- <dir> is the directory in which to place the files associated with
+  this run of variational EM.  (See part D below.)
+
+- <settings> is a settings file.  For example, the inf-settings.txt file
+  is good for EM and looks like this: 
+
+                  em max iter 1000
+                  var max iter 20
+                  cg max iter -1
+                  em convergence 1e-3
+                  var convergence 1e-6
+                  cg convergence 1e-6
+                  lag 10
+                  covariance estimate mle
+
+  The first item ("em max iter") is the maximum number of EM
+  iterations.
+
+  The second item ("var max iter") is the maximum number of variational iterations,
+  i.e., passes through each variational parameter (-1 indicates to
+  iterate until the convergence criterion is met.)
+
+  The third item ("cg max iter") is the maximum number of conjugate
+  gradient iterations in fitting the variational mean and variance per
+  document.
+
+  Items 4-6 are convergence criterions for EM, variational inference,
+  and conjugate gradient, respectively.
+
+  The 7th item ("lag") is the multiple of iterations of EM after which
+  to save a version of the model.  This is useful, for example, if you
+  want to monitor how the model changes from iteration to iteration.
+
+  The 8th item ("covariance estimate") is what technique to estimate
+  the covariance with.  The choices are "mle" or "shrinkage."
+
+------------------------------------------------------------------------
+
+D. MODEL EXAMINATION
+
+1. Once EM has converged, the model directory will be populated with
+several files that can be used to examine the resulting model fit, for
+example to make topic graph figures or compute similarity between
+documents.
+
+All the files are stored in row major format.  They can be read into R
+with the command:
+
+     x <- matrix(scan(FILENAME), byrow=T, nrow=NR, ncol=NC),
+
+where FILENAME is the file, NR is the number of rows, and NC is the
+number of columns. The files are as follows:
+
+    final-cov.dat, final-inv-cov.dat, final-log-det-inv-cov: These are
+    files corresponding to the d x d covariance matrix where d is the latent
+    dimension.
+
+    final-mu.dat: This is the d-dimensional mean vector of the logistic normal
+    over topic proportions.
+
+    final-lambda.dat and final-nu.dat: This is a U x d matrix of the
+    variational mean parameter for each document.
+
+    final-nu: This is the U x d matrix of the variational variance
+    parameter for each document in the collection.
+
+    likelihood.dat: This is a record of the likelihood bound at each
+    iteration of EM.  The columns are: old likelihood bound, new likelihood bound, 
+    convergence criterion, time in seconds of the iteration, average number of
+    variational iterations per document, the percentage of documents
+    that reached the variational convergence criterion.
+
+
+
+
